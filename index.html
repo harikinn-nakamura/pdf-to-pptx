@@ -66,6 +66,7 @@
 
         let slidesData = [];
         let activeIndex = 0;
+        let originalFileName = "presentation"; // ファイル名保存用
 
         const fileInput = document.getElementById('fileInput');
         const uploadUI = document.getElementById('uploadUI');
@@ -82,6 +83,9 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            // 元のファイル名を取得（拡張子 .pdf を除去）
+            originalFileName = file.name.replace(/\.[^/.]+$/, "");
+
             loader.classList.replace('hidden', 'flex');
             document.getElementById('selectBtn').classList.add('hidden');
 
@@ -92,7 +96,6 @@
                 slidesData = [];
                 for (let i = 1; i <= pdf.numPages; i++) {
                     const page = await pdf.getPage(i);
-                    // 修正箇所: getPageViewport ではなく getViewport が正解
                     const viewport = page.getViewport({ scale: 2.0 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
@@ -147,7 +150,8 @@
                     slide.addImage({ data: s.image, x: 0, y: 0, w: '100%', h: '100%' });
                     if (s.note) slide.addNotes(s.note);
                 });
-                await pptx.writeFile({ fileName: `presentation_${Date.now()}.pptx` });
+                // 元のファイル名を使用して保存
+                await pptx.writeFile({ fileName: `${originalFileName}.pptx` });
             } catch (err) {
                 alert("生成エラー: " + err.message);
             } finally {
