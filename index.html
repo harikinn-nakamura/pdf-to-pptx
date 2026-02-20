@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Slide Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <style>
+        .loading-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col">
+
+    <header class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-slate-900/80 backdrop-blur-md">
+        <div class="flex items-center gap-2 font-bold text-lg">
+            <span class="text-blue-500">⚡</span> Quick Slide Converter
+        </div>
+        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95">
+            PPTX出力
+        </button>
+    </header>
+
+    <main id="dropZone" class="flex-1 flex flex-col items-center justify-center p-6 transition-colors">
+        
+        <div id="uploadUI" class="text-center p-10 bg-slate-900/50 rounded-3xl border border-white/10 backdrop-blur-md shadow-2xl max-w-md">
+            <div class="mb-6 mx-auto w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center">
+                <span class="text-4xl text-blue-400">📄</span>
+            </div>
+            <h1 class="text-3xl font-bold mb-2">PDF to PPTX</h1>
+            <p class="text-slate-400 mb-8">PDFをドロップするか、ファイルを選択してください。</p>
+            <input type="file" id="fileInput" accept=".pdf" class="hidden">
+            <button onclick="document.getElementById('fileInput').click()" id="selectBtn" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-lg flex items-center justify-center gap-3">
+                ファイルを選択
+            </button>
+            <div id="loader" class="hidden mt-4 text-blue-400 font-bold items-center justify-center gap-2">
+                <span class="loading-spin block w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full"></span>
+                処理中...
+            </div>
+        </div>
+
+        <div id="editorUI" class="hidden w-full h-full flex overflow-hidden">
+            <div id="sidebar" class="w-48 border-r border-white/10 overflow-y-auto p-3 bg-slate-900/30 space-y-3"></div>
+            <div class="flex-1 flex flex-col bg-slate-950 relative">
+                <div class="flex-1 p-8 flex items-center justify-center overflow-hidden">
+                    <img id="mainPreview" class="max-h-full shadow-2xl border border-white/5">
+                </div>
+                <div class="h-48 bg-slate-900/80 border-t border-white/10 p-4 backdrop-blur-md">
+                    <div class="text-xs font-bold text-blue-400 mb-2">スライドノート (PPTXに保存されます)</div>
+                    <textarea id="noteArea" class="w-full h-28 bg-slate-800/50 p-4 rounded-xl text-sm outline-none focus:ring-2 ring-blue-500/50 transition-all resize-none"></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let slidesData = [];
+        let activeIndex = 0;
+
+        const fileInput = document.getElementById('fileInput');
+        const uploadUI = document.getElementById('uploadUI');
+        const editorUI = document.getElementById('editorUI');
+        const sidebar = document.getElementById('sidebar');
+        const mainPreview = document.getElementById('mainPreview');
+        const noteArea = document.getElementById('noteArea');
+        const exportBtn = document.getElementById('exportBtn');
+        const loader = document.getElementById('loader');
+
+        fileInput.addEventListener('change', handleFile);
+
+        async function handleFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            loader.classList.replace('hidden', 'flex');
+            document.getElementById('selectBtn').classList.add('hidden');
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                slidesData = [];
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 2.0 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    await page.render({ canvasContext: context, viewport }).promise;
+                    
+                    slidesData.push({
+                        image: canvas.toDataURL('image/png'),
+                        note: ""
+                    });
+                }
+                
+                renderEditor();
+            } catch (err) {
+                alert("エラー: " + err.message);
+                location.reload();
+            }
+        }
+
+        function renderEditor() {
+            uploadUI.classList.add('hidden');
+            editorUI.classList.remove('hidden');
+            exportBtn.classList.remove('hidden');
+            
+            sidebar.innerHTML = '';
+            slidesData.forEach((s, i) => {
+                const thumb = document.createElement('div');
+                thumb.className = `cursor-pointer rounded border-2 mb-2 overflow-hidden ${i === activeIndex ? 'border-blue-500' : 'border-transparent opacity-60'}`;
+                thumb.innerHTML = `<img src="${s.image}" class="w-full">`;
+                thumb.onclick = () => switchSlide(i);
+                sidebar.appendChild(thumb);
+            });
+
+            mainPreview.src = slidesData[activeIndex].image;
+            noteArea.value = slidesData[activeIndex].note;
+        }
+
+        function switchSlide(index) {
+            slidesData[activeIndex].note = noteArea.value; // Save current note
+            activeIndex = index;
+            renderEditor();
+        }
+
+        noteArea.oninput = () => {
+            slidesData[activeIndex].note = noteArea.value;
+        };
+
+        exportBtn.onclick = () => {
+            const pptx = new PptxGenJS();
+            slidesData.forEach(s => {
+                const slide = pptx.addSlide();
+                slide.addImage({ data: s.image, x: 0, y: 0, w: '100%', h: '100%' });
+                if (s.note) slide.addNotes(s.note);
+            });
+            pptx.writeFile({ fileName: `presentation_${Date.now()}.pptx` });
+        };
+    </script>
+</body>
+</html>
