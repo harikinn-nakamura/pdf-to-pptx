@@ -21,7 +21,7 @@
         <div class="flex items-center gap-2 font-bold text-lg">
             <span class="text-blue-500 text-2xl">⚡</span> PDF Slide to PPTX
         </div>
-        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed min-w-[180px] text-center">
+        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed min-w-[240px] text-center text-sm md:text-base whitespace-nowrap">
             PPTX出力
         </button>
     </header>
@@ -131,13 +131,11 @@
 
         noteArea.oninput = () => { slidesData[activeIndex].note = noteArea.value; };
 
-        // --- 修正：進捗表示を確実に描画させるロジック ---
         exportBtn.onclick = async () => {
             if (!window.PptxGenJS || slidesData.length === 0) return;
             
             exportBtn.disabled = true;
             const originalClass = exportBtn.className;
-            // 処理中は色を少し暗くする
             exportBtn.classList.add('bg-slate-700');
 
             try {
@@ -147,26 +145,24 @@
 
                 for (let i = 0; i < total; i++) {
                     const percent = Math.round(((i + 1) / total) * 100);
-                    // ボタンのテキストを更新
-                    exportBtn.innerText = `作成中... ${percent}%`;
+                    // 表示テキストをより明確に
+                    exportBtn.innerText = `PPTX生成中: ${percent}%`;
 
                     const s = slidesData[i];
                     const slide = pptx.addSlide();
                     slide.addImage({ data: s.image, x: 0, y: 0, w: '100%', h: '100%' });
                     if (s.note) slide.addNotes(s.note);
 
-                    // 重要：ここでブラウザに描画の隙間を与える
-                    // 枚数に関わらず毎回50ms待機することで、確実に数字の更新を見せる
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    // 描画のための待機時間を100msに増やして確実に更新を見せる
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
 
-                exportBtn.innerText = "保存中...";
+                exportBtn.innerText = "保存処理中...";
                 await pptx.writeFile({ fileName: `${originalFileName}.pptx` });
 
             } catch (err) {
                 alert("生成エラー: " + err.message);
             } finally {
-                // 元の状態に戻す
                 exportBtn.innerText = "PPTX出力";
                 exportBtn.disabled = false;
                 exportBtn.className = originalClass;
