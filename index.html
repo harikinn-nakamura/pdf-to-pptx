@@ -8,16 +8,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
     <style>
+        /* スピンアニメーション */
         .loading-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        /* --- 修正：ふわふわ動くアニメーションの定義 --- */
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-15px); } /* 上に15px動く */
+        /* --- 【最重要修正】ふわふわ動くアニメーションを強制適用 --- */
+        @keyframes customFloat {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); } /* 20px分、上に浮き上がる */
+            100% { transform: translateY(0px); }
         }
-        .animate-float {
-            animation: float 3s ease-in-out infinite; /* 3秒かけてゆっくり往復 */
+        
+        /* クラス名が競合しないよう独自の名前に設定 */
+        .u-float-animation {
+            animation: customFloat 3s ease-in-out infinite !important;
+            display: inline-flex; /* アニメーションを確実に有効化 */
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -39,9 +44,11 @@
     <main class="flex-1 flex flex-col items-center justify-center relative transition-colors overflow-hidden">
         
         <div id="uploadUI" class="text-center p-10 bg-slate-900/50 rounded-3xl border border-white/10 backdrop-blur-md shadow-2xl max-w-md z-10">
-            <div class="mb-8 mx-auto w-24 h-24 bg-blue-600/20 rounded-full flex items-center justify-center animate-float shadow-[0_0_30px_rgba(37,99,235,0.2)]">
+            
+            <div class="mb-10 mx-auto w-24 h-24 bg-blue-600/20 rounded-full flex items-center justify-center u-float-animation shadow-[0_20px_50px_rgba(37,99,235,0.3)]">
                 <span class="text-5xl text-blue-400">📄</span>
             </div>
+
             <h1 class="text-3xl font-bold mb-2">PDF Slide to PPTX</h1>
             <p class="text-slate-400 mb-8 leading-relaxed">PDFを読み込んでパワポに変換します。<br>ブラウザ内処理で安全・高速です。</p>
             <input type="file" id="fileInput" accept=".pdf" class="hidden">
@@ -58,7 +65,7 @@
             <div id="sidebar" class="w-56 border-r border-white/10 overflow-y-auto p-4 bg-slate-900/30 space-y-4 shadow-xl"></div>
             <div class="flex-1 flex flex-col relative">
                 <div class="flex-1 p-8 flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 to-slate-950">
-                    <img id="mainPreview" class="max-h-full shadow-2xl border border-white/5 rounded-sm transition-opacity duration-300">
+                    <img id="mainPreview" class="max-h-full shadow-2xl border border-white/5 rounded-sm">
                 </div>
                 <div class="h-56 bg-slate-900/80 border-t border-white/10 p-5 backdrop-blur-md">
                     <div class="flex items-center gap-2 text-xs font-bold text-blue-400 mb-3 tracking-widest uppercase">
@@ -71,7 +78,6 @@
     </main>
 
     <script>
-        // --- 内部ロジックは変更なし ---
         const pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -147,12 +153,10 @@
             exportBtn.disabled = true;
             const originalClass = exportBtn.className;
             exportBtn.classList.add('bg-slate-700');
-
             try {
                 slidesData[activeIndex].note = noteArea.value;
                 const pptx = new PptxGenJS();
                 const total = slidesData.length;
-
                 for (let i = 0; i < total; i++) {
                     const percent = Math.round(((i + 1) / total) * 100);
                     exportBtn.innerText = `PPTX生成中: ${percent}%`;
@@ -162,10 +166,8 @@
                     if (s.note) slide.addNotes(s.note);
                     await new Promise(resolve => setTimeout(resolve, 100));
                 }
-
                 exportBtn.innerText = "保存処理中...";
                 await pptx.writeFile({ fileName: `${originalFileName}.pptx` });
-
             } catch (err) {
                 alert("生成エラー: " + err.message);
             } finally {
