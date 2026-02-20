@@ -10,46 +10,53 @@
     <style>
         .loading-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* スクロールバーのカスタマイズ */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 font-sans h-screen flex flex-col overflow-hidden">
 
-    <header class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-slate-900/80 backdrop-blur-md">
+    <header class="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-slate-900/80 backdrop-blur-md z-50">
         <div class="flex items-center gap-2 font-bold text-lg">
-            <span class="text-blue-500">⚡</span> Quick Slide Converter
+            <span class="text-blue-500 text-2xl">⚡</span> Quick Slide Converter
         </div>
-        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95">
+        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-8 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
             PPTX出力
         </button>
     </header>
 
-    <main id="dropZone" class="flex-1 flex flex-col items-center justify-center p-6 transition-colors">
+    <main id="dropZone" class="flex-1 flex flex-col items-center justify-center relative transition-colors overflow-hidden">
         
-        <div id="uploadUI" class="text-center p-10 bg-slate-900/50 rounded-3xl border border-white/10 backdrop-blur-md shadow-2xl max-w-md">
+        <div id="uploadUI" class="text-center p-10 bg-slate-900/50 rounded-3xl border border-white/10 backdrop-blur-md shadow-2xl max-w-md z-10">
             <div class="mb-6 mx-auto w-20 h-20 bg-blue-600/20 rounded-full flex items-center justify-center">
                 <span class="text-4xl text-blue-400">📄</span>
             </div>
             <h1 class="text-3xl font-bold mb-2">PDF to PPTX</h1>
-            <p class="text-slate-400 mb-8">PDFをドロップするか、ファイルを選択してください。</p>
+            <p class="text-slate-400 mb-8">PDFを読み込んでパワポに変換します。<br>ブラウザ内処理で安全・高速です。</p>
             <input type="file" id="fileInput" accept=".pdf" class="hidden">
-            <button onclick="document.getElementById('fileInput').click()" id="selectBtn" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-lg flex items-center justify-center gap-3">
+            <button onclick="document.getElementById('fileInput').click()" id="selectBtn" class="w-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all active:scale-95">
                 ファイルを選択
             </button>
             <div id="loader" class="hidden mt-4 text-blue-400 font-bold items-center justify-center gap-2">
                 <span class="loading-spin block w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full"></span>
-                処理中...
+                PDF解析中...
             </div>
         </div>
 
-        <div id="editorUI" class="hidden w-full h-full flex overflow-hidden">
-            <div id="sidebar" class="w-48 border-r border-white/10 overflow-y-auto p-3 bg-slate-900/30 space-y-3"></div>
-            <div class="flex-1 flex flex-col bg-slate-950 relative">
-                <div class="flex-1 p-8 flex items-center justify-center overflow-hidden">
-                    <img id="mainPreview" class="max-h-full shadow-2xl border border-white/5">
+        <div id="editorUI" class="hidden w-full h-full flex overflow-hidden bg-slate-950">
+            <div id="sidebar" class="w-56 border-r border-white/10 overflow-y-auto p-4 bg-slate-900/30 space-y-4 shadow-xl"></div>
+            
+            <div class="flex-1 flex flex-col relative">
+                <div class="flex-1 p-8 flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 to-slate-950">
+                    <img id="mainPreview" class="max-h-full shadow-2xl border border-white/5 rounded-sm transition-opacity duration-300">
                 </div>
-                <div class="h-48 bg-slate-900/80 border-t border-white/10 p-4 backdrop-blur-md">
-                    <div class="text-xs font-bold text-blue-400 mb-2">スライドノート (PPTXに保存されます)</div>
-                    <textarea id="noteArea" class="w-full h-28 bg-slate-800/50 p-4 rounded-xl text-sm outline-none focus:ring-2 ring-blue-500/50 transition-all resize-none"></textarea>
+                <div class="h-56 bg-slate-900/80 border-t border-white/10 p-5 backdrop-blur-md">
+                    <div class="flex items-center gap-2 text-xs font-bold text-blue-400 mb-3 tracking-widest uppercase">
+                        <span>📝 スライドノート (パワポのノート欄に反映)</span>
+                    </div>
+                    <textarea id="noteArea" class="w-full h-32 bg-slate-800/50 p-4 rounded-xl text-sm outline-none focus:ring-2 ring-blue-500/50 transition-all resize-none shadow-inner" placeholder="このスライドに関するメモや説明文を入力してください..."></textarea>
                 </div>
             </div>
         </div>
@@ -115,8 +122,11 @@
             sidebar.innerHTML = '';
             slidesData.forEach((s, i) => {
                 const thumb = document.createElement('div');
-                thumb.className = `cursor-pointer rounded border-2 mb-2 overflow-hidden ${i === activeIndex ? 'border-blue-500' : 'border-transparent opacity-60'}`;
-                thumb.innerHTML = `<img src="${s.image}" class="w-full">`;
+                thumb.className = `group relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 shadow-md ${i === activeIndex ? 'border-blue-500 scale-[1.02] shadow-blue-500/20' : 'border-transparent opacity-60 hover:opacity-100'}`;
+                thumb.innerHTML = `
+                    <img src="${s.image}" class="w-full">
+                    <div class="absolute bottom-1 right-2 text-[10px] font-bold text-white drop-shadow-md">P${i+1}</div>
+                `;
                 thumb.onclick = () => switchSlide(i);
                 sidebar.appendChild(thumb);
             });
@@ -126,7 +136,7 @@
         }
 
         function switchSlide(index) {
-            slidesData[activeIndex].note = noteArea.value; // Save current note
+            slidesData[activeIndex].note = noteArea.value; // Save current note before switching
             activeIndex = index;
             renderEditor();
         }
@@ -135,14 +145,50 @@
             slidesData[activeIndex].note = noteArea.value;
         };
 
-        exportBtn.onclick = () => {
-            const pptx = new PptxGenJS();
-            slidesData.forEach(s => {
-                const slide = pptx.addSlide();
-                slide.addImage({ data: s.image, x: 0, y: 0, w: '100%', h: '100%' });
-                if (s.note) slide.addNotes(s.note);
-            });
-            pptx.writeFile({ fileName: `presentation_${Date.now()}.pptx` });
+        // --- 今回の修正箇所: PPTX出力ボタンの挙動改善 ---
+        exportBtn.onclick = async () => {
+            if (!window.PptxGenJS || slidesData.length === 0) return;
+
+            // ボタンの状態を「ダウンロード中」に変更
+            const originalText = exportBtn.innerText;
+            exportBtn.innerText = "ダウンロード中...";
+            exportBtn.disabled = true;
+            const originalClass = exportBtn.className;
+            exportBtn.classList.add('bg-slate-700', 'cursor-not-allowed');
+
+            try {
+                // 現在のノートを保存
+                slidesData[activeIndex].note = noteArea.value;
+
+                const pptx = new PptxGenJS();
+                
+                // 全スライドを処理
+                slidesData.forEach((s, idx) => {
+                    const slide = pptx.addSlide();
+                    // スライドに画像をフルサイズで配置
+                    slide.addImage({ 
+                        data: s.image, 
+                        x: 0, y: 0, 
+                        w: '100%', h: '100%' 
+                    });
+                    // ノートがあれば追加
+                    if (s.note && s.note.trim() !== "") {
+                        slide.addNotes(s.note);
+                    }
+                });
+
+                // PPTXファイルの書き出し
+                await pptx.writeFile({ fileName: `slides_${Date.now()}.pptx` });
+
+            } catch (err) {
+                console.error(err);
+                alert("PPTX生成中にエラーが発生しました: " + err.message);
+            } finally {
+                // 処理終了後にボタンを元の状態に戻す
+                exportBtn.innerText = originalText;
+                exportBtn.disabled = false;
+                exportBtn.className = originalClass;
+            }
         };
     </script>
 </body>
