@@ -21,7 +21,7 @@
         <div class="flex items-center gap-2 font-bold text-lg">
             <span class="text-blue-500 text-2xl">⚡</span> PDF Slide to PPTX
         </div>
-        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-8 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed min-w-[160px]">
+        <button id="exportBtn" class="hidden bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed min-w-[180px] text-center">
             PPTX出力
         </button>
     </header>
@@ -131,23 +131,23 @@
 
         noteArea.oninput = () => { slidesData[activeIndex].note = noteArea.value; };
 
-        // --- 今回の修正: パーセント表示ロジック ---
+        // --- 修正：進捗表示を確実に描画させるロジック ---
         exportBtn.onclick = async () => {
             if (!window.PptxGenJS || slidesData.length === 0) return;
             
-            const originalText = "PPTX出力";
             exportBtn.disabled = true;
-            exportBtn.className = "bg-slate-700 px-8 py-2 rounded-lg font-bold transition-all cursor-not-allowed min-w-[160px]";
+            const originalClass = exportBtn.className;
+            // 処理中は色を少し暗くする
+            exportBtn.classList.add('bg-slate-700');
 
             try {
                 slidesData[activeIndex].note = noteArea.value;
                 const pptx = new PptxGenJS();
                 const total = slidesData.length;
 
-                // 各スライドをループで追加
                 for (let i = 0; i < total; i++) {
-                    // パーセント表示を更新 (i+1枚目 / total枚)
                     const percent = Math.round(((i + 1) / total) * 100);
+                    // ボタンのテキストを更新
                     exportBtn.innerText = `作成中... ${percent}%`;
 
                     const s = slidesData[i];
@@ -155,10 +155,9 @@
                     slide.addImage({ data: s.image, x: 0, y: 0, w: '100%', h: '100%' });
                     if (s.note) slide.addNotes(s.note);
 
-                    // ブラウザの描画をブロックしないように微小な待機を入れる
-                    if (total > 10) {
-                        await new Promise(resolve => setTimeout(resolve, 10));
-                    }
+                    // 重要：ここでブラウザに描画の隙間を与える
+                    // 枚数に関わらず毎回50ms待機することで、確実に数字の更新を見せる
+                    await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
                 exportBtn.innerText = "保存中...";
@@ -167,9 +166,10 @@
             } catch (err) {
                 alert("生成エラー: " + err.message);
             } finally {
-                exportBtn.innerText = originalText;
+                // 元の状態に戻す
+                exportBtn.innerText = "PPTX出力";
                 exportBtn.disabled = false;
-                exportBtn.className = "bg-blue-600 hover:bg-blue-500 px-8 py-2 rounded-lg font-bold transition-all shadow-lg active:scale-95 min-w-[160px]";
+                exportBtn.className = originalClass;
             }
         };
     </script>
